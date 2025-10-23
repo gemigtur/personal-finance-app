@@ -11,6 +11,9 @@ export async function GET(req: Request) {
     const fk_accounts = params.get("fk_accounts");
     const date_range = params.get("date_range");
     const rawOrder = params.get("order");
+    const grouped = params.get("grouped");
+    const isGrouped = grouped ? !["false", "0", "no"].includes(grouped.toLowerCase()) : false;
+    const direction = rawOrder?.toLowerCase() === "asc" ? "asc" : "desc";
     // pagination params with basic validation and sane defaults
     const rawPage = params.get("page");
     const rawLimit = params.get("limit");
@@ -59,18 +62,34 @@ export async function GET(req: Request) {
       limitOffsetClause = sql`limit ${limit} offset ${offset}`;
     }
 
-    // Data query with pagination
-    const dataQuery = sql`
-      select 
-        amount.id, 
-        amount.amount, 
-        amount.date, 
-        a.name as account_name
-      ${fromClause}
-      ${whereClause}
-      order by amount.date desc
-      ${limitOffsetClause}
-    `;
+    const orderClause = direction === "asc" ? sql`order by amount.date asc` : sql`order by amount.date desc`;
+
+    // Data query with pagination (switch depending on grouping)
+    const dataQuery = isGrouped
+      ? sql`
+        select 
+          amount.date,
+          sum(amount.amount) as amount,
+          'All'::text as account_name,
+          null::text as account_color
+        ${fromClause}
+        ${whereClause}
+        group by amount.date
+        ${orderClause}
+        ${limitOffsetClause}
+      `
+      : sql`
+        select 
+          amount.id, 
+          amount.amount, 
+          amount.date, 
+          a.name as account_name,
+          a.color as account_color
+        ${fromClause}
+        ${whereClause}
+        ${orderClause}
+        ${limitOffsetClause}
+      `;
 
     if (!page || !limit) {
       const amounts = await dataQuery;
@@ -81,11 +100,21 @@ export async function GET(req: Request) {
     }
 
     // Count query for total rows (without pagination)
-    const countQuery = sql`
-      select count(*)::int as total
-      ${fromClause}
-      ${whereClause}
-    `;
+    const countQuery = isGrouped
+      ? sql`
+        select count(*)::int as total
+        from (
+          select amount.date
+          ${fromClause}
+          ${whereClause}
+          group by amount.date
+        ) t
+      `
+      : sql`
+        select count(*)::int as total
+        ${fromClause}
+        ${whereClause}
+      `;
 
     const [amounts, countRows] = await Promise.all([dataQuery, countQuery]);
     const total = countRows?.[0]?.total ?? 0;
@@ -120,6 +149,21 @@ export async function POST(req: Request, res: Response) {
     return new Response("Success", {
       status: 200,
     });
+  } catch (error) {
+    console.log(error);
+    return new Response("Error!", {
+      status: 400,
+    });
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const amount = await req.json();
+
+    const res = await sql`delete from amount where id = ${amount.id}`;
+
+    return Response.json(res);
   } catch (error) {
     console.log(error);
     return new Response("Error!", {

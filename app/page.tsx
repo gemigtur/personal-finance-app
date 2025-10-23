@@ -1,16 +1,15 @@
 import { AccountCard } from "@/components/account-card";
 import { AmountCard } from "@/components/amount-card";
-import { AmountTable } from "@/components/amount-table";
-import { LineChartRender } from "@/components/line-charts";
+import { TabsView } from "@/components/tabs";
 
 export default function Home() {
   return (
-    <div>
-      <p>hello</p>
-      <AccountCard />
-      <AmountCard />
-      <AmountTable />
-      <LineChartRender />
+    <div className="grid grid-cols-2 gap-2">
+      <div className="flex flex-col gap-2">
+        <AmountCard />
+        <AccountCard />
+      </div>
+      <TabsView />
     </div>
   );
 }

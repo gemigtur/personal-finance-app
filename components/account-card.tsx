@@ -1,6 +1,7 @@
 "use client";
 
 import type { AccountProps } from "@/types";
+import { colors } from "@/utils/constans";
 import {
   Button,
   Card,
@@ -12,6 +13,9 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  Select,
+  Selection,
+  SelectItem,
   Table,
   TableBody,
   TableCell,
@@ -34,12 +38,13 @@ const columns = [
 
 type ActionsProps = {
   account: AccountProps;
-  onUpdate: (account: AccountProps, name: string) => Promise<void> | void;
+  onUpdate: (account: AccountProps, name: string, color: AccountProps["color"]) => Promise<void> | void;
   onDelete: (account: AccountProps) => Promise<void> | void;
 };
 
 const Actions = ({ account, onUpdate, onDelete }: ActionsProps) => {
   const [updateName, setUpdateName] = useState(account.name);
+  const [updateColor, setUpdateColor] = useState<Selection>(new Set([account.color ?? "default"]));
   const [isOpen, setIsOpen] = useState(false);
   return (
     <div>
@@ -52,14 +57,30 @@ const Actions = ({ account, onUpdate, onDelete }: ActionsProps) => {
         <PopoverContent>
           {titleProps => (
             <div className="flex flex-col gap-2 py-2">
-              <p>Update name</p>
+              <p>Update account</p>
               <Input label="New name" size="sm" onValueChange={setUpdateName} isClearable value={updateName} />
+              <Select
+                selectedKeys={updateColor}
+                onSelectionChange={setUpdateColor}
+                startContent={<Chip className="w-6 h-4" color={Array.from(updateColor)[0] as AccountProps["color"]} />}
+              >
+                {colors.map(color => (
+                  <SelectItem key={color} startContent={<Chip color={color} className="w-6 h-4" />}>
+                    {color}
+                  </SelectItem>
+                ))}
+              </Select>
               <Button
                 size="sm"
                 color="primary"
                 className="w-full"
                 onPress={() => {
-                  onUpdate(account, updateName);
+                  // extract single selected color from Selection
+                  const selectedColor =
+                    updateColor === "all"
+                      ? (account.color ?? "default")
+                      : (Array.from(updateColor)[0] as AccountProps["color"]);
+                  onUpdate(account, updateName, selectedColor);
                   setIsOpen(false);
                 }}
               >
@@ -127,9 +148,9 @@ export const AccountCard = () => {
     mutate();
   };
 
-  const updateAccount = async (account: AccountProps, name: string) => {
+  const updateAccount = async (account: AccountProps, name: string, color: AccountProps["color"]) => {
     // optimistic update (new array + new object)
-    mutate(curr => curr?.map(a => (a.id === account.id ? { ...a, name } : a)) ?? [], {
+    mutate(curr => curr?.map(a => (a.id === account.id ? { ...a, name, color: color ?? a.color } : a)) ?? [], {
       revalidate: false,
       rollbackOnError: true,
     });
@@ -137,7 +158,7 @@ export const AccountCard = () => {
     await fetch("/account/api", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...account, name }),
+      body: JSON.stringify({ ...account, name, color }),
     });
 
     // ensure server truth
@@ -150,7 +171,7 @@ export const AccountCard = () => {
         case "id":
           return <p>{account.id}</p>;
         case "name":
-          return <Chip>{account.name}</Chip>;
+          return <Chip color={account.color}>{account.name}</Chip>;
         case "amount":
           return <p>{account.amount}</p>;
         case "actions":

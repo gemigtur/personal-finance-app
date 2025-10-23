@@ -25,7 +25,8 @@ export async function GET(req: Request) {
       select 
         a.id,
         a.name,
-        coalesce(am.amount, 0) as amount
+        coalesce(am.amount, 0) as amount,
+        a.color
       from accounts a
       left join lateral (
         select amount, date
@@ -49,10 +50,13 @@ export async function DELETE(req: Request) {
   try {
     const account = await req.json();
 
+    // Delete related amounts first due to foreign key constraint
+    await sql`delete from amount where fk_account = ${account.id}`;
     const res = await sql`delete from accounts where id = ${account.id}`;
 
     return Response.json(res);
-  } catch {
+  } catch (error) {
+    console.log(error);
     return new Response("Error!", {
       status: 400,
     });
@@ -63,7 +67,8 @@ export async function PUT(req: Request) {
   try {
     const account = await req.json();
 
-    const res = await sql`update accounts set name = ${account.name} where id = ${account.id}`;
+    const res =
+      await sql`update accounts set name = ${account.name}, color = ${account.color} where id = ${account.id}`;
 
     return Response.json(res);
   } catch (error) {

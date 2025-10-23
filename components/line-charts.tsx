@@ -15,7 +15,7 @@ const fetcher = (url: string) => fetch(url).then(res => res.json());
 export const LineChartRender = () => {
   // Register the required components
   echarts.use([TitleComponent, TooltipComponent, GridComponent, LineChart, CanvasRenderer, LegendComponent]);
-  const url = `/amount/api?order=desc`;
+  const url = `/amount/api?order=asc&grouped=true`;
   const { data, error, isLoading: loading } = useSWR(url, fetcher);
 
   if (error) return <p>error..</p>;
@@ -31,9 +31,11 @@ export const LineChartRender = () => {
       type: "line",
       name: a,
       smooth: true,
+      showSymbol: false,
       // areaStyle: {
       //   opacity: 0.5,
       // },
+
       data: data.data.filter((r: any) => a === r.account_name).map((r: any) => r.amount),
     };
   });
@@ -44,6 +46,10 @@ export const LineChartRender = () => {
   const option = {
     legend: {
       data: [...accounts],
+    },
+    axisPointer: {
+      show: true,
+      type: "line",
     },
     xAxis: {
       type: "category",
