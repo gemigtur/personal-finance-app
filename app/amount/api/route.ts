@@ -12,8 +12,10 @@ export async function GET(req: Request) {
     const date_range = params.get("date_range");
     const rawOrder = params.get("order");
     const grouped = params.get("grouped");
+    const percentage = params.get("percentage");
     const isGrouped = grouped ? !["false", "0", "no"].includes(grouped.toLowerCase()) : false;
     const direction = rawOrder?.toLowerCase() === "asc" ? "asc" : "desc";
+    const isPercentage = percentage ? !["false", "0", "no"].includes(percentage.toLowerCase()) : false;
     // pagination params with basic validation and sane defaults
     const rawPage = params.get("page");
     const rawLimit = params.get("limit");
@@ -93,6 +95,29 @@ export async function GET(req: Request) {
 
     if (!page || !limit) {
       const amounts = await dataQuery;
+
+      const percArray = [];
+
+      if (isPercentage) {
+        for (let i = 0; i < amounts.length; i++) {
+          // if first
+          if (i === 0) {
+            percArray.push({
+              ...amounts[i],
+              amount: 0,
+            });
+            continue;
+          }
+          percArray.push({
+            ...amounts[i],
+            amount: (amounts[i].amount / amounts[0].amount - 1) * 100,
+          });
+        }
+
+        return Response.json({
+          data: percArray,
+        });
+      }
 
       return Response.json({
         data: amounts,

@@ -8,6 +8,14 @@ export const siteConfig = {
       label: "Home",
       href: "/",
     },
+    {
+      label: "Transactions",
+      href: "/transactions",
+    },
+    {
+      label: "Categories",
+      href: "/categories",
+    },
   ],
   navMenuItems: [
     {
